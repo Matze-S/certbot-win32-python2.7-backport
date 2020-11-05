@@ -122,7 +122,7 @@ def main(args):
     finally:
         if os.environ.get('TRAVIS'):
             print('travis_fold:end:install_certbot_deps')
-        shutil.rmtree(working_dir)
+#        shutil.rmtree(working_dir)
 
 
 if __name__ == '__main__':
