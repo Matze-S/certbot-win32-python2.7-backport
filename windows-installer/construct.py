@@ -22,7 +22,7 @@ def main():
 
     installer_cfg_path = _generate_pynsist_config(repo_path, build_path)
 
-    _prepare_build_tools(venv_path, venv_python, repo_path)
+    _prepare_build_tools(venv_path, venv_python, repo_path, build_path)
     _compile_wheels(repo_path, build_path, venv_python)
     _build_installer(installer_cfg_path, venv_path)
 
@@ -42,7 +42,7 @@ def _compile_wheels(repo_path, build_path, venv_python):
 
     certbot_packages = ['acme', 'certbot']
     # Uncomment following line to include all DNS plugins in the installer
-    # certbot_packages.extend([name for name in os.listdir(repo_path) if name.startswith('certbot-dns-')])
+    certbot_packages.extend([name for name in os.listdir(repo_path) if name.startswith('certbot-dns-')])
     wheels_project = [os.path.join(repo_path, package) for package in certbot_packages]
 
     with _prepare_constraints(repo_path) as constraints_file_path:
@@ -50,13 +50,34 @@ def _compile_wheels(repo_path, build_path, venv_python):
         command.extend(wheels_project)
         subprocess.check_call(command)
 
-
-def _prepare_build_tools(venv_path, venv_python, repo_path):
+def _prepare_build_tools(venv_path, venv_python, repo_path, build_path):
     print('Prepare build tools')
-    subprocess.check_call([sys.executable, '-m', 'venv', venv_path])
+    #subprocess.check_call([sys.executable, '-m', 'venv', venv_path])
+    subprocess.check_call(['virtualenv', venv_path])
+
+    ######################
+    #wheels_path = os.path.join(build_path, 'wheels')
+    #os.makedirs(wheels_path)
+    #
+    #own_packages = ['../pynsist']
+    #wheels_project = [os.path.join(repo_path, package) for package in own_packages]
+    #
+    #with _prepare_constraints(repo_path) as constraints_file_path:
+    #    command = [venv_python, '-m', 'pip', 'wheel', '-w', wheels_path, '--constraint', constraints_file_path]
+    #    command.extend(wheels_project)
+    #    subprocess.check_call(command)
+    ######################
+    
     subprocess.check_call([venv_python, os.path.join(repo_path, 'letsencrypt-auto-source', 'pieces', 'pipstrap.py')])
-    subprocess.check_call([venv_python, os.path.join(repo_path, 'tools', 'pip_install.py'), 'pynsist'])
+    #subprocess.check_call([venv_python, os.path.join(repo_path, 'tools', 'pip_install.py'), 'pynsist' ])
+
+    subprocess.check_call([venv_python, '-m', 'ensurepip', '--upgrade'])
+    subprocess.check_call([venv_python, '-m', 'pip', 'install', os.path.join(repo_path, "windows-installer/./pynsist-2.5.1-py2.py3-none-any.whl") ])
+    subprocess.check_call([venv_python, '-m', 'pip', 'install', 'pynsist', os.path.join(repo_path, '../pynsist') ])
+    #subprocess.check_call([venv_python, os.path.join(repo_path, 'tools', 'pip_install.py'), 'pynsist', os.path.join(repo_path, '../pynsist') ])
+
     subprocess.check_call(['choco', 'upgrade', '--allow-downgrade', '-y', 'nsis', '--version', NSIS_VERSION])
+
 
 
 @contextlib.contextmanager
