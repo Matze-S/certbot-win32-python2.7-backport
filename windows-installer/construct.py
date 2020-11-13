@@ -76,7 +76,7 @@ def _prepare_build_tools(venv_path, venv_python, repo_path, build_path):
     subprocess.check_call([venv_python, '-m', 'pip', 'install', 'pynsist', os.path.join(repo_path, '../pynsist') ])
     #subprocess.check_call([venv_python, os.path.join(repo_path, 'tools', 'pip_install.py'), 'pynsist', os.path.join(repo_path, '../pynsist') ])
 
-    subprocess.check_call(['choco', 'upgrade', '--allow-downgrade', '-y', 'nsis', '--version', NSIS_VERSION])
+    #subprocess.check_call(['choco', 'upgrade', '--allow-downgrade', '-y', 'nsis', '--version', NSIS_VERSION])
 
 
 
@@ -144,7 +144,7 @@ imp.load_dynamic('pythoncom', pcom)
     certbot_version = subprocess.check_output([sys.executable, '-c', 'import certbot; print(certbot.__version__)'],
                                               universal_newlines=True, cwd=certbot_pkg_path).strip()
 
-    # If we change the installer name from `certbot-beta-installer-win32.exe`, it should
+    # If we change the installer name from `certbot-installer-win32.exe`, it should
     # also be changed in tools/create_github_release.py
     with open(installer_cfg_path, 'w') as file_h:
         file_h.write('''\
@@ -158,7 +158,7 @@ target=$INSTDIR\\run.bat
 [Build]
 directory=nsis
 nsi_template=template.nsi
-installer_name=certbot-beta-installer-{installer_suffix}.exe
+installer_name=certbot-installer-{installer_suffix}.exe
 
 [Python]
 version={python_version}
@@ -183,11 +183,11 @@ extra_preamble=pywin32_paths.py
 
 def _prepare_environment():
     print('Prepare environment')
-    try:
-        subprocess.check_output(['choco', '--version'])
-    except subprocess.CalledProcessError:
-        raise RuntimeError('Error: Chocolatey (https://chocolatey.org/) needs '
-                           'to be installed to run this script.')
+    #try:
+    #    subprocess.check_output(['choco', '--version'])
+    #except subprocess.CalledProcessError:
+    #    raise RuntimeError('Error: Chocolatey (https://chocolatey.org/) needs '
+    #                       'to be installed to run this script.')
     script_path = os.path.realpath(__file__)
     repo_path = os.path.dirname(os.path.dirname(script_path))
     build_path = os.path.join(repo_path, 'windows-installer', 'build')
