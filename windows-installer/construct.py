@@ -54,19 +54,15 @@ def main():
     _copy_assets(build_path, repo_path)
     
     _prepare_build_tools(venv_path, venv_python, repo_path, build_path)
-
     _compile_wheels(repo_path, build_path, venv_python)
 
     installer_cfg_path = _generate_pynsist_config(repo_path, build_path, venv_python)
-    
     nsis_path = os.path.join(build_path, 'nsis')
     os.makedirs(nsis_path)
     for name in os.listdir(os.path.join(repo_path, 'windows-installer')):
         if name.endswith('.msi'):
             shutil.copy(os.path.join(repo_path, 'windows-installer', name), nsis_path)
-    
     shutil.copy(os.path.join(repo_path, 'windows-installer', 'certbot.ico'), build_path)
-
     _build_installer(installer_cfg_path, venv_path)
 
     print('Done')
@@ -85,12 +81,13 @@ def _compile_wheels(repo_path, build_path, venv_python):
  
     certbot_packages = ['acme', 'certbot']
     # Uncomment following line to include all DNS plugins in the installer
-    certbot_packages.extend([name for name in os.listdir(repo_path) if name.startswith('certbot-dns-')])
+    #certbot_packages.extend([name for name in os.listdir(repo_path) if name.startswith('certbot-dns-')])
     wheels_project = [os.path.join(repo_path, package) for package in certbot_packages]
 
-    print('Prepare Constraints')
+#    print('Prepare Constraints')
     with _prepare_constraints(repo_path) as constraints_file_path:
-        command = [venv_python, '-m', 'pip', 'wheel', '-w', wheels_path, '--constraint', constraints_file_path]
+#        command = [venv_python, '-m', 'pip', 'wheel', '-w', wheels_path, '--constraint', constraints_file_path]
+        command = [venv_python, '-m', 'pip', 'wheel', '-w', wheels_path, '--constraint', 'constraints.txt']
         command.extend(wheels_project)
         subprocess.check_call(command)
         
@@ -147,15 +144,15 @@ def _prepare_build_tools(venv_path, venv_python, repo_path, build_path):
 
 @contextlib.contextmanager
 def _prepare_constraints(repo_path):
-    requirements = os.path.join(repo_path, 'letsencrypt-auto-source', 'pieces', 'dependency-requirements.txt')
+#    requirements = os.path.join(repo_path, 'letsencrypt-auto-source', 'pieces', 'dependency-requirements.txt')
+#    constraints = subprocess.check_output(
+#        [sys.executable, os.path.join(repo_path, 'tools', 'strip_hashes.py'), requirements],
+#        universal_newlines=True)
+#    constraints = subprocess.check_output(
+#        [sys.executable, '-m', 'pip', 'freeze'],
+#        universal_newlines=True)
     constraints = subprocess.check_output(
-        [sys.executable, os.path.join(repo_path, 'tools', 'strip_hashes.py'), requirements],
-        universal_newlines=True)
-    constraints = subprocess.check_output(
-        [sys.executable, '-m', 'pip', 'freeze'],
-        universal_newlines=True)
-    constraints = subprocess.check_output(
-        ['cat', 'reqs_1.12.txt'],
+        ['cat', 'constraints.txt'],
         universal_newlines=True)
     workdir = tempfile.mkdtemp()
     try:
@@ -207,10 +204,8 @@ def _generate_pynsist_config(repo_path, build_path, venv_python):
     
     certbot_packages = ['acme', 'certbot']
     # Uncomment following line to include all DNS plugins in the installer
-    certbot_packages.extend([name.replace('-', '_') for name in os.listdir(repo_path) if name.startswith('certbot-dns-')])
+    #certbot_packages.extend([name.replace('-', '_') for name in os.listdir(repo_path) if name.startswith('certbot-dns-')])
     
-
-
     pywin32_paths_file = os.path.join(build_path, 'pywin32_paths.py')
 
     # Pywin32 uses non-standard folders to hold its packages. We need to instruct pynsist bootstrap
