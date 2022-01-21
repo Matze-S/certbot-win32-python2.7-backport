@@ -1,0 +1,161 @@
+diff --git a/certbot/certbot/compat/_path.py b/certbot/certbot/compat/_path.py
+index 44c5e30..8ee3389 100644
+--- a/certbot/certbot/compat/_path.py
++++ b/certbot/certbot/compat/_path.py
+@@ -33,3 +33,7 @@ def realpath(*unused_args, **unused_kwargs):
+     """Method os.path.realpath() is forbidden"""
+     raise RuntimeError('Usage of os.path.realpath() is forbidden. '
+                        'Use certbot.compat.filesystem.realpath() instead.')
++
++def islink(path):
++    from certbot.compat import os
++    return os.islink(path)
+diff --git a/certbot/certbot/compat/filesystem.py b/certbot/certbot/compat/filesystem.py
+index 0c8a751..bed9f12 100644
+--- a/certbot/certbot/compat/filesystem.py
++++ b/certbot/certbot/compat/filesystem.py
+@@ -20,6 +20,8 @@ except ImportError:
+ else:
+     POSIX_MODE = False
+ 
++import logging
++logger = logging.getLogger(__name__)
+ 
+ # Windows umask implementation, since Windows does not have a concept of umask by default.
+ # We choose 022 as initial value since it is the default one on most Linux distributions, and
+@@ -346,6 +348,7 @@ def replace(src, dst):
+         getattr(os, 'replace')(src, dst)
+     else:
+         # Otherwise, use os.rename() that behaves like os.replace() on Linux.
++        os.unlink(dst)
+         os.rename(src, dst)
+ 
+ 
+diff --git a/certbot/certbot/compat/misc.py b/certbot/certbot/compat/misc.py
+index f4ea4a5..36d21ad 100644
+--- a/certbot/certbot/compat/misc.py
++++ b/certbot/certbot/compat/misc.py
+@@ -51,6 +51,7 @@ def readline_with_timeout(timeout, prompt):
+     :rtype: str
+ 
+     """
++    return sys.stdin.readline()
+     try:
+         # Linux specific
+         #
+@@ -138,7 +139,7 @@ def execute_command(cmd_name, shell_cmd, env=None):
+     else:
+         line = ['powershell.exe', '-Command', shell_cmd]
+         cmd = subprocess.Popen(line, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+-                               universal_newlines=True, env=env)
++                               universal_newlines=True)
+ 
+     # universal_newlines causes Popen.communicate()
+     # to return str objects instead of bytes in Python 3
+diff --git a/certbot/certbot/compat/os.py b/certbot/certbot/compat/os.py
+index b4aea05..adcfbe3 100644
+--- a/certbot/certbot/compat/os.py
++++ b/certbot/certbot/compat/os.py
+@@ -39,6 +39,9 @@ if not std_os.environ.get("CERTBOT_DOCS") == "1":
+ from certbot.compat import _path as path  # type: ignore  # pylint: disable=wrong-import-position
+ std_sys.modules[__name__ + '.path'] = path
+ 
++import logging
++logger = logging.getLogger(__name__)
++
+ # Clean all remaining importables that are not from the core os module.
+ del ourselves, std_os, std_sys
+ 
+@@ -152,3 +155,80 @@ def fstat(*unused_args, **unused_kwargs):
+     raise RuntimeError('Usage of os.fstat() is forbidden. '
+                        'Use certbot.compat.filesystem functions instead '
+                        '(eg. has_min_permissions, has_same_ownership).')
++
++def symlink_ln():
++    import os.path
++    return os.path.join(os.path.dirname(__file__), 'symlink-1.07-x86', 'ln.exe')
++
++def symlink(source, target):
++    from certbot.compat import filesystem
++    from certbot.compat import os
++    from certbot import util
++    import os.path
++
++    if os.path.isabs(source):
++        abs_source = source
++    else:
++        abs_source = os.path.join(os.path.dirname(target), source)
++
++    if os.path.exists(abs_source):
++        logging.debug('os.symlink: exists(%s)', abs_source)
++        abs_source = ''
++    else:
++        logging.debug('os.symlink: touch(%s)', abs_source)
++        util.safe_open(abs_source, 'a').close()
++
++    import subprocess
++    cwd = os.getcwd()
++    os.chdir(os.path.dirname(target))
++    subprocess.check_call([symlink_ln, '-s', source.replace('/', '\\'), target.replace('/', '\\')])
++    os.chdir(cwd)
++    logging.debug('os.symlink: %s -s %s %s', symlink_ln, source.replace('/', '\\'), target.replace('/', '\\'))
++
++    if abs_source != '':
++      logging.debug('os.symlink: unlink(%s)', abs_source)
++      os.unlink(abs_source)
++
++def readlink(source):
++    target = ''
++    state = 0
++#    logging.debug('os.readlink: %s %s', symlink_ln, source)
++    import subprocess
++    output = subprocess.check_output([symlink_ln, source.replace('/', '\\')], stderr=subprocess.STDOUT, universal_newlines=True)
++    for line in output.split('\n'):
++#        logging.debug('os.readlink: (state=%d) %s', state, line)
++        if state != 1 and line.startswith('SubstituteName'):
++          state = 1
++#          logging.debug('os.readlink: (state=%d) %s [SubstituteName]', state, line)
++        elif state != 2 and line.startswith('PrintName'):
++          state = 2
++#          logging.debug('os.readlink: (state=%d) %s [PrintName]', state, line)
++        elif state == 1 and not ' = ' in line:
++          substitutename = line
++          target = substitutename
++          state = 0
++#          logging.debug('os.readlink: (state=%d) %s [target/substitutename]', state, line)
++        elif state == 2 and not ' = ' in line:
++          printname = line
++          target = printname
++          state = 0
++#          logging.debug('os.readlink: (state=%d) %s [target/printname]', state, line)
++#        else:
++#          logging.debug('os.readlink: (state=%d) %s [skipping]', state, line)
++    logging.debug('os.readlink: readlink(%s) => %s', source, target)
++    return target
++
++def realpath(source):
++#    logger.debug('os.realpath: readlink(%s) ...', source)
++    target = readlink(source)
++    if not os.path.isabs(target):
++      target = os.path.join(dirname(source), target)
++    logger.debug('os.realpath: readlink(%s) => %s', source, target)
++    return target
++
++def islink(source):
++#    logger.debug('os.islink: readlink(%s) ...', source)
++    target = readlink(source)
++    res = target != ''
++    logger.debug('os.islink: readlink(%s) => %s => %d', source, target, res)
++    return res
+diff --git a/certbot/certbot/util.py b/certbot/certbot/util.py
+index 6b8e731..2e41fe2 100644
+--- a/certbot/certbot/util.py
++++ b/certbot/certbot/util.py
+@@ -198,6 +198,7 @@ def make_or_verify_dir(directory, mode=0o755, strict=False):
+     try:
+         filesystem.makedirs(directory, mode)
+     except OSError as exception:
++        return
+         if exception.errno == errno.EEXIST:
+             if strict and not filesystem.check_permissions(directory, mode):
+                 raise errors.Error(
