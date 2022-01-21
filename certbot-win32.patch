@@ -71,7 +71,7 @@ index b4aea05..adcfbe3 100644
                         'Use certbot.compat.filesystem functions instead '
                         '(eg. has_min_permissions, has_same_ownership).')
 +
-+def symlink_ln():
++def get_symlink_lnsymlink_ln():
 +    import os.path
 +    return os.path.join(os.path.dirname(__file__), 'symlink-1.07-x86', 'ln.exe')
 +
@@ -96,9 +96,9 @@ index b4aea05..adcfbe3 100644
 +    import subprocess
 +    cwd = os.getcwd()
 +    os.chdir(os.path.dirname(target))
-+    subprocess.check_call([symlink_ln, '-s', source.replace('/', '\\'), target.replace('/', '\\')])
++    subprocess.check_call([get_symlink_ln(), '-s', source.replace('/', '\\'), target.replace('/', '\\')])
 +    os.chdir(cwd)
-+    logging.debug('os.symlink: %s -s %s %s', symlink_ln, source.replace('/', '\\'), target.replace('/', '\\'))
++    logging.debug('os.symlink: %s -s %s %s', get_symlink_ln(), source.replace('/', '\\'), target.replace('/', '\\'))
 +
 +    if abs_source != '':
 +      logging.debug('os.symlink: unlink(%s)', abs_source)
@@ -107,9 +107,9 @@ index b4aea05..adcfbe3 100644
 +def readlink(source):
 +    target = ''
 +    state = 0
-+#    logging.debug('os.readlink: %s %s', symlink_ln, source)
++#    logging.debug('os.readlink: %s %s', get_symlink_ln(), source)
 +    import subprocess
-+    output = subprocess.check_output([symlink_ln, source.replace('/', '\\')], stderr=subprocess.STDOUT, universal_newlines=True)
++    output = subprocess.check_output([get_symlink_ln(), source.replace('/', '\\')], stderr=subprocess.STDOUT, universal_newlines=True)
 +    for line in output.split('\n'):
 +#        logging.debug('os.readlink: (state=%d) %s', state, line)
 +        if state != 1 and line.startswith('SubstituteName'):
