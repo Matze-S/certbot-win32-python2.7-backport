@@ -20,6 +20,8 @@ except ImportError:
 else:
     POSIX_MODE = False
 
+import logging
+logger = logging.getLogger(__name__)
 
 # Windows umask implementation, since Windows does not have a concept of umask by default.
 # We choose 022 as initial value since it is the default one on most Linux distributions, and
@@ -346,6 +348,7 @@ def replace(src, dst):
         getattr(os, 'replace')(src, dst)
     else:
         # Otherwise, use os.rename() that behaves like os.replace() on Linux.
+        os.unlink(dst)
         os.rename(src, dst)
 
 

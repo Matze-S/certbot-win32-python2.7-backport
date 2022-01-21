@@ -51,6 +51,7 @@ def readline_with_timeout(timeout, prompt):
     :rtype: str
 
     """
+    return sys.stdin.readline()
     try:
         # Linux specific
         #
@@ -138,7 +139,7 @@ def execute_command(cmd_name, shell_cmd, env=None):
     else:
         line = ['powershell.exe', '-Command', shell_cmd]
         cmd = subprocess.Popen(line, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               universal_newlines=True, env=env)
+                               universal_newlines=True)
 
     # universal_newlines causes Popen.communicate()
     # to return str objects instead of bytes in Python 3

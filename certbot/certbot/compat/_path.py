@@ -33,3 +33,7 @@ def realpath(*unused_args, **unused_kwargs):
     """Method os.path.realpath() is forbidden"""
     raise RuntimeError('Usage of os.path.realpath() is forbidden. '
                        'Use certbot.compat.filesystem.realpath() instead.')
+
+def islink(path):
+    from certbot.compat import os
+    return os.islink(path)

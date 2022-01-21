@@ -39,6 +39,9 @@ if not std_os.environ.get("CERTBOT_DOCS") == "1":
 from certbot.compat import _path as path  # type: ignore  # pylint: disable=wrong-import-position
 std_sys.modules[__name__ + '.path'] = path
 
+import logging
+logger = logging.getLogger(__name__)
+
 # Clean all remaining importables that are not from the core os module.
 del ourselves, std_os, std_sys
 
@@ -152,3 +155,80 @@ def fstat(*unused_args, **unused_kwargs):
     raise RuntimeError('Usage of os.fstat() is forbidden. '
                        'Use certbot.compat.filesystem functions instead '
                        '(eg. has_min_permissions, has_same_ownership).')
+
+def get_symlink_lnsymlink_ln():
+    import os.path
+    return os.path.join(os.path.dirname(__file__), 'symlink-1.07-x86', 'ln.exe')
+
+def symlink(source, target):
+    from certbot.compat import filesystem
+    from certbot.compat import os
+    from certbot import util
+    import os.path
+
+    if os.path.isabs(source):
+        abs_source = source
+    else:
+        abs_source = os.path.join(os.path.dirname(target), source)
+
+    if os.path.exists(abs_source):
+        logging.debug('os.symlink: exists(%s)', abs_source)
+        abs_source = ''
+    else:
+        logging.debug('os.symlink: touch(%s)', abs_source)
+        util.safe_open(abs_source, 'a').close()
+
+    import subprocess
+    cwd = os.getcwd()
+    os.chdir(os.path.dirname(target))
+    subprocess.check_call([get_symlink_ln(), '-s', source.replace('/', '\\'), target.replace('/', '\\')])
+    os.chdir(cwd)
+    logging.debug('os.symlink: %s -s %s %s', get_symlink_ln(), source.replace('/', '\\'), target.replace('/', '\\'))
+
+    if abs_source != '':
+      logging.debug('os.symlink: unlink(%s)', abs_source)
+      os.unlink(abs_source)
+
+def readlink(source):
+    target = ''
+    state = 0
+#    logging.debug('os.readlink: %s %s', get_symlink_ln(), source)
+    import subprocess
+    output = subprocess.check_output([get_symlink_ln(), source.replace('/', '\\')], stderr=subprocess.STDOUT, universal_newlines=True)
+    for line in output.split('\n'):
+#        logging.debug('os.readlink: (state=%d) %s', state, line)
+        if state != 1 and line.startswith('SubstituteName'):
+          state = 1
+#          logging.debug('os.readlink: (state=%d) %s [SubstituteName]', state, line)
+        elif state != 2 and line.startswith('PrintName'):
+          state = 2
+#          logging.debug('os.readlink: (state=%d) %s [PrintName]', state, line)
+        elif state == 1 and not ' = ' in line:
+          substitutename = line
+          target = substitutename
+          state = 0
+#          logging.debug('os.readlink: (state=%d) %s [target/substitutename]', state, line)
+        elif state == 2 and not ' = ' in line:
+          printname = line
+          target = printname
+          state = 0
+#          logging.debug('os.readlink: (state=%d) %s [target/printname]', state, line)
+#        else:
+#          logging.debug('os.readlink: (state=%d) %s [skipping]', state, line)
+    logging.debug('os.readlink: readlink(%s) => %s', source, target)
+    return target
+
+def realpath(source):
+#    logger.debug('os.realpath: readlink(%s) ...', source)
+    target = readlink(source)
+    if not os.path.isabs(target):
+      target = os.path.join(dirname(source), target)
+    logger.debug('os.realpath: readlink(%s) => %s', source, target)
+    return target
+
+def islink(source):
+#    logger.debug('os.islink: readlink(%s) ...', source)
+    target = readlink(source)
+    res = target != ''
+    logger.debug('os.islink: readlink(%s) => %s => %d', source, target, res)
+    return res
